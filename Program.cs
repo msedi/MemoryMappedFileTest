@@ -9,8 +9,9 @@ namespace MemoryMappedFileTest
 {
     class Program
     {
-        const int N = 250000;
+        const int N = 1000000;
         const int M = 40000;
+        public const string FileName = "C:\\MM\\mm.dat";
 
         static void Main(string[] args)
         {
@@ -21,7 +22,7 @@ namespace MemoryMappedFileTest
         {
             Stopwatch w = Stopwatch.StartNew();
 
-            using var mm = MemoryMappedFile.CreateFromFile("D:\\mm.dat");
+            using var mm = MemoryMappedFile.CreateFromFile(FileName);
             using var va = mm.CreateViewAccessor();
 
             var data = new float[M];
@@ -44,7 +45,7 @@ namespace MemoryMappedFileTest
         {
             Stopwatch w = Stopwatch.StartNew();
 
-            using var mm = MemoryMappedFile.CreateFromFile("D:\\mm.dat");
+            using var mm = MemoryMappedFile.CreateFromFile(FileName);
             using var va = mm.CreateViewStream();
 
             var data = new float[M];
@@ -68,7 +69,7 @@ namespace MemoryMappedFileTest
         {
             Stopwatch w = Stopwatch.StartNew();
 
-            using var mm = MemoryMappedFile.CreateFromFile("D:\\mm.dat");
+            using var mm = MemoryMappedFile.CreateFromFile(FileName);
             using var va = mm.CreateViewAccessor();
 
 
@@ -93,7 +94,7 @@ namespace MemoryMappedFileTest
 
         public static void Create()
         {
-            using var stream = File.Create("D:\\mm.dat");
+            using var stream = File.Create(FileName);
 
 
             stream.SetLength((long)N * M * sizeof(float));
