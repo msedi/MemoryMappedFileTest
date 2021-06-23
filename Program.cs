@@ -98,9 +98,6 @@ namespace MemoryMappedFileTest
                 long pos = (long)i * M * sizeof(float);
 
                 va.Read(dataSpan);
-
-                if (data[0] != i)
-                    Console.WriteLine("!EGG");
             }
 
             w.Stop();
