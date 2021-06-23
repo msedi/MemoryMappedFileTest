@@ -1,9 +1,12 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
+using System.Threading;
 
 namespace MemoryMappedFileTest
 {
@@ -11,11 +14,50 @@ namespace MemoryMappedFileTest
     {
         const int N = 1000000;
         const int M = 40000;
+        static int i = 0;
+        static int lastI = 0;
         public const string FileName = "C:\\MM\\mm.dat";
 
         static void Main(string[] args)
         {
-            ReadPointer();
+            using (Timer t = new Timer(callback))
+            {
+                t.Change(0, 1000);
+
+                ReadPointer();
+            }
+        }
+
+        private static void callback(object state)
+        {
+            int currenti = i;
+            int delta = currenti - lastI;
+            Console.WriteLine($"{100 * (i + 1) / (float)N} | {delta}/sec | {(long)delta * M * sizeof(float) / 1000 / 1000}MiB/sec");
+
+            lastI = currenti;
+        }
+
+        public static void ReadFileStream()
+        {
+            Stopwatch w = Stopwatch.StartNew();
+
+
+            using var mm = File.OpenRead(FileName);
+
+            var data = new float[M];
+            Span<byte> dataSpan = MemoryMarshal.Cast<float, byte>(data);
+
+            for (i = 0; i < N; i++)
+            {
+                long pos = (long)i * M * sizeof(float);
+
+                mm.Read(dataSpan);
+
+
+            }
+
+            w.Stop();
+            Console.WriteLine(w.ElapsedMilliseconds);
         }
 
         public static void ReadViewAccessor()
@@ -27,11 +69,11 @@ namespace MemoryMappedFileTest
 
             var data = new float[M];
 
-            for (int i = 0; i < N; i++)
+            for ( i = 0; i < N; i++)
             {
-                long pos = (long)i *  M * sizeof(float);
+                long pos = (long)i * M * sizeof(float);
 
-                   va.ReadArray(pos, data, 0, M);
+                va.ReadArray(pos, data, 0, M);
 
                 if (data[0] != i)
                     Console.WriteLine("!EGG");
@@ -51,7 +93,7 @@ namespace MemoryMappedFileTest
             var data = new float[M];
             Span<byte> dataSpan = MemoryMarshal.Cast<float, byte>(data);
 
-            for (int i = 0; i < N; i++)
+            for ( i = 0; i < N; i++)
             {
                 long pos = (long)i * M * sizeof(float);
 
@@ -76,7 +118,7 @@ namespace MemoryMappedFileTest
             var ptr = (float*)va.SafeMemoryMappedViewHandle.DangerousGetHandle();
 
 
-            for (int i = 0; i < N; i++)
+            for ( i = 0; i < N; i++)
             {
                 long pos = (long)i * M;
 
@@ -99,7 +141,7 @@ namespace MemoryMappedFileTest
 
             stream.SetLength((long)N * M * sizeof(float));
 
-            for (int i=0; i<N; i++)
+            for (int i = 0; i < N; i++)
             {
                 Span<float> data = new Span<float>(new float[M]);
                 data.Fill(i);
