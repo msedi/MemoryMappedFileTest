@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MemoryMappedFileTest
 {
@@ -14,7 +16,7 @@ namespace MemoryMappedFileTest
     {
         const int N = 1000000;
         const int M = 40000;
-        static int i = 0;
+        static int currentI = 0;
         static int lastI = 0;
         public const string FileName = "C:\\MM\\mm.dat";
 
@@ -24,15 +26,15 @@ namespace MemoryMappedFileTest
             {
                 t.Change(0, 1000);
 
-                ReadPointer();
+                ReadHandle();
             }
         }
 
         private static void callback(object state)
         {
-            int currenti = i;
-            int delta = currenti - lastI;
-            Console.WriteLine($"{100 * (i + 1) / (float)N} | {delta}/sec | {(long)delta * M * sizeof(float) / 1000 / 1000}MiB/sec");
+            int currenti = currentI;
+            int delta = (int)(currenti - lastI);
+            Console.WriteLine($"{100 * (currenti + 1) / (float)N} | {delta}/sec | {(long)delta * M * sizeof(float) / 1000 / 1000}MiB/sec");
 
             lastI = currenti;
         }
@@ -47,11 +49,12 @@ namespace MemoryMappedFileTest
             var data = new float[M];
             Span<byte> dataSpan = MemoryMarshal.Cast<float, byte>(data);
 
-            for (i = 0; i < N; i++)
+            for (int i  = 0; i < N; i++)
             {
                 long pos = (long)i * M * sizeof(float);
 
                 mm.Read(dataSpan);
+                Interlocked.Increment(ref currentI);
 
 
             }
@@ -69,7 +72,7 @@ namespace MemoryMappedFileTest
 
             var data = new float[M];
 
-            for ( i = 0; i < N; i++)
+            for (int i = 0; i < N; i++)
             {
                 long pos = (long)i * M * sizeof(float);
 
@@ -77,6 +80,9 @@ namespace MemoryMappedFileTest
 
                 if (data[0] != i)
                     Console.WriteLine("!EGG");
+
+                Interlocked.Increment(ref currentI);
+
             }
 
             w.Stop();
@@ -93,18 +99,21 @@ namespace MemoryMappedFileTest
             var data = new float[M];
             Span<byte> dataSpan = MemoryMarshal.Cast<float, byte>(data);
 
-            for ( i = 0; i < N; i++)
+            for (int i = 0; i < N; i++)
             {
                 long pos = (long)i * M * sizeof(float);
 
                 va.Read(dataSpan);
+
+                Interlocked.Increment(ref currentI);
+
             }
 
             w.Stop();
             Console.WriteLine(w.ElapsedMilliseconds);
         }
 
-        public unsafe static void ReadPointer()
+        public unsafe static void ReadHandle()
         {
             Stopwatch w = Stopwatch.StartNew();
 
@@ -112,20 +121,35 @@ namespace MemoryMappedFileTest
             using var va = mm.CreateViewAccessor();
 
 
-            var ptr = (float*)va.SafeMemoryMappedViewHandle.DangerousGetHandle();
+            var ptr = (nint)va.SafeMemoryMappedViewHandle.DangerousGetHandle();
+
+            List<MemoryMappedHandle> handles = new(N);
 
 
-            for ( i = 0; i < N; i++)
+            nint inc = M * sizeof(float);
+            for (int i=0; i<N; i++)
             {
-                long pos = (long)i * M;
+                nint pos = i * inc;
 
-                var offset = ptr + pos;
+                var handle = new MemoryMappedHandle(ptr + pos, M);
+                handles.Add(handle);
+                 //  var data = handle.AsReadOnlySpan<float>();
 
-                Span<float> data = new Span<float>(ptr + pos, M);
+                //if (data[0] != i)
+                //    Console.WriteLine("!EGG");
+
+                //Interlocked.Increment(ref currentI);
+            };
+
+            for (int i = 0; i < N; i++)
+            {
+                var data = handles[i].AsReadOnlySpan<float>();
 
                 if (data[0] != i)
                     Console.WriteLine("!EGG");
-            }
+                
+                Interlocked.Increment(ref currentI);
+            };
 
             w.Stop();
             Console.WriteLine(w.ElapsedMilliseconds);
